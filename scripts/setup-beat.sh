@@ -5,8 +5,8 @@ set -euo pipefail
 beat=$1
 
 until curl -s "http://kibana:5601/login" | grep "Loading Kibana" > /dev/null; do
-	  echo "Waiting for kibana..."
-	  sleep 1
+	echo "Waiting for kibana..."
+	sleep 1
 done
 
 chmod go-w /usr/share/$beat/$beat.yml
@@ -15,11 +15,11 @@ chmod go-w /usr/share/$beat/$beat.yml
 echo "Creating keystore..."
 # create beat keystore
 ${beat} --strict.perms=false keystore create --force
-chown 1000 /usr/share/$beat/$beat.keystore
+chown 1000 /usr/share/$beat/data/$beat.keystore
 chmod go-w /usr/share/$beat/$beat.yml
 
 echo "adding ES_PASSWORD to keystore..."
-echo "$ELASTIC_PASSWORD" | ${beat} --strict.perms=false keystore add ELASTIC_PASSWORD --stdin
+echo "$ELASTIC_PASSWORD" | ${beat} --strict.perms=false keystore add ELASTIC_PASSWORD --stdin --force
 ${beat} --strict.perms=false keystore list
 
 echo "Setting up dashboards..."
@@ -28,5 +28,5 @@ echo "Setting up dashboards..."
 ${beat} --strict.perms=false setup -v
 
 echo "Copy keystore to ./config dir"
-cp /usr/share/$beat/$beat.keystore /config/$beat/$beat.keystore
+cp /usr/share/$beat/data/$beat.keystore /config/$beat/$beat.keystore
 chown 1000:1000 /config/$beat/$beat.keystore
