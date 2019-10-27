@@ -21,3 +21,6 @@ config/heartbeat/heartbeat.keystore
 config/metricbeat/metricbeat.keystore
 config/packetbeat/packetbeat.keystore
 config/apm-server/apm-server.keystore
+
+# Ignore Mac OS files
+.DS_Store
