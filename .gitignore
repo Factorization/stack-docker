@@ -18,6 +18,7 @@ config/ssl/docker-cluster.zip
 config/auditbeat/auditbeat.keystore
 config/filebeat/filebeat.keystore
 config/heartbeat/heartbeat.keystore
+config/journalbeat/journalbeat.keystore
 config/metricbeat/metricbeat.keystore
 config/packetbeat/packetbeat.keystore
 config/apm-server/apm-server.keystore

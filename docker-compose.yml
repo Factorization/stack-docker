@@ -20,6 +20,7 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:${TAG}
     container_name: elasticsearch
+    hostname: elasticsearch
     environment:
       - cluster.initial_master_nodes=elasticsearch
     secrets:
@@ -33,7 +34,9 @@ services:
         target: /usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.key
       - source: elasticsearch.crt
         target: /usr/share/elasticsearch/config/certs/elasticsearch/elasticsearch.crt
-    ports: ['9200:9200']
+    ports: 
+      - '9200:9200'
+      - '9300:9300'
     networks: ['stack']
     volumes:
       - 'es_data:/usr/share/elasticsearch/data'
@@ -47,6 +50,7 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:${TAG}
     container_name: kibana
+    hostname: kibana
     secrets:
       - source: kibana.yml
         target: /usr/share/kibana/config/kibana.yml
@@ -70,6 +74,7 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:${TAG}
     container_name: logstash
+    hostname: logstash
     secrets:
       - source: logstash.conf
         target: /usr/share/logstash/pipeline/logstash.conf
@@ -90,6 +95,7 @@ services:
   auditbeat:
     image: docker.elastic.co/beats/auditbeat:${TAG}
     container_name: auditbeat
+    hostname: auditbeat
     command: -e --strict.perms=false # -e flag to log to stderr and disable syslog/file output
     cap_add: ['AUDIT_CONTROL', 'AUDIT_READ']
     secrets:
@@ -101,8 +107,10 @@ services:
         target: /usr/share/auditbeat/certs/ca/ca.crt
     # Auditbeat must run in the main process namespace.
     pid: host
+    user: root
     volumes:
       - './scripts/setup-beat.sh:/usr/local/bin/setup-beat.sh:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock'
     networks: ['stack']
     depends_on: ['elasticsearch', 'kibana']
     healthcheck:
@@ -114,6 +122,7 @@ services:
   filebeat:
     image: docker.elastic.co/beats/filebeat:${TAG}
     container_name: filebeat
+    hostname: filebeat
     command: --strict.perms=false -e  # -e flag to log to stderr and disable syslog/file output
     # If the host system has logs at "/var/log", mount them at "/mnt/log"
     # inside the container, where Filebeat can find them.
@@ -125,12 +134,16 @@ services:
         target: /usr/share/filebeat/data/filebeat.keystore
       - source: ca.crt
         target: /usr/share/filebeat/certs/ca/ca.crt
+    user: root
     volumes:
       - './scripts/setup-beat.sh:/usr/local/bin/setup-beat.sh:ro'
+      - '/var/log:/mnt/log:ro'
+      - '/var/lib/docker/containers:/var/lib/docker/containers:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
     networks: ['stack']
     depends_on: ['elasticsearch', 'kibana']
     healthcheck:
-      test: filebeat test config
+      test: filebeat --strict.perms=false test config
       interval: 30s
       timeout: 15s
       retries: 5
@@ -138,7 +151,9 @@ services:
   heartbeat:
     image: docker.elastic.co/beats/heartbeat:${TAG}
     container_name: heartbeat
+    hostname: heartbeat
     command: --strict.perms=false -e  # -e flag to log to stderr and disable syslog/file output
+    cap_add: ['AUDIT_CONTROL', 'AUDIT_READ']  
     secrets:
       - source: heartbeat.yml
         target: /usr/share/heartbeat/heartbeat.yml
@@ -146,12 +161,39 @@ services:
         target: /usr/share/heartbeat/data/heartbeat.keystore
       - source: ca.crt
         target: /usr/share/heartbeat/certs/ca/ca.crt
+    user: root
     volumes:
       - './scripts/setup-beat.sh:/usr/local/bin/setup-beat.sh:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
     networks: ['stack']
     depends_on: ['elasticsearch', 'kibana']
     healthcheck:
-      test: heartbeat test config
+      test: heartbeat --strict.perms=false test config
+      interval: 30s
+      timeout: 15s
+      retries: 5
+
+  journalbeat:
+    image: docker.elastic.co/beats/journalbeat:${TAG}
+    container_name: journalbeat
+    hostname: journalbeat
+    command: --strict.perms=false -e  # -e flag to log to stderr and disable syslog/file output
+    secrets:
+      - source: journalbeat.yml
+        target: /usr/share/journalbeat/journalbeat.yml
+      - source: journalbeat.keystore
+        target: /usr/share/journalbeat/data/journalbeat.keystore
+      - source: ca.crt
+        target: /usr/share/journalbeat/certs/ca/ca.crt
+    user: root
+    volumes:
+      - './scripts/setup-beat.sh:/usr/local/bin/setup-beat.sh:ro'
+      - '/etc/machine-id:/etc/machine-id'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+    networks: ['stack']
+    depends_on: ['elasticsearch', 'kibana']
+    healthcheck:
+      test: journalbeat --strict.perms=false test config
       interval: 30s
       timeout: 15s
       retries: 5
@@ -159,6 +201,7 @@ services:
   metricbeat:
     image: docker.elastic.co/beats/metricbeat:${TAG}
     container_name: metricbeat
+    hostname: metricbeat
     # The commented sections below enable Metricbeat to monitor the Docker host,
     # rather than the Metricbeat container. It's problematic with Docker for
     # Windows, however, since "/proc", "/sys" etc. don't exist on Windows.
@@ -167,7 +210,7 @@ services:
     #   - /proc:/hostfs/proc:ro
     #   - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
     #   - /:/hostfs:ro
-    command: --strict.perms=false -e  # -e flag to log to stderr and disable syslog/file output
+    command: --strict.perms=false -e  -system.hostfs=/hostfs # -e flag to log to stderr and disable syslog/file output
     secrets:
       - source: metricbeat.yml
         target: /usr/share/metricbeat/metricbeat.yml
@@ -175,12 +218,17 @@ services:
         target: /usr/share/metricbeat/data/metricbeat.keystore
       - source: ca.crt
         target: /usr/share/metricbeat/certs/ca/ca.crt
+    user: root
     volumes:
       - './scripts/setup-beat.sh:/usr/local/bin/setup-beat.sh:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+      - '/sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro'
+      - '/proc:/hostfs/proc:ro'
+      - '/:/hostfs:ro'
     networks: ['stack']
     depends_on: ['elasticsearch', 'kibana']
     healthcheck:
-      test: metricbeat test config
+      test: metricbeat --strict.perms=false test config
       interval: 30s
       timeout: 15s
       retries: 5
@@ -188,6 +236,7 @@ services:
   packetbeat:
     image: docker.elastic.co/beats/packetbeat:${TAG}
     container_name: packetbeat
+    hostname: packetbeat
     # Packetbeat needs some elevated privileges to capture network traffic.
     # We'll grant them with POSIX capabilities.
     cap_add: ['NET_RAW', 'NET_ADMIN']
@@ -199,8 +248,8 @@ services:
     # that the other containers are connected to, and thus can't resolve the
     # hostname "elasticsearch". Instead, we'll tell it to find Elasticsearch
     # on "localhost", which is the Docker host machine in this context.
-    command: -e -E 'output.elasticsearch.hosts=["localhost:9200"]'
-    depends_on: ['elasticsearch']
+    # command: -e -E 'output.elasticsearch.hosts=["localhost:9200"]'
+    # depends_on: ['elasticsearch']
     command: --strict.perms=false -e -E output.elasticsearch.hosts="https://localhost:9200" # -e flag to log to stderr and disable syslog/file output
     secrets:
       - source: packetbeat.yml
@@ -209,18 +258,21 @@ services:
         target: /usr/share/packetbeat/data/packetbeat.keystore
       - source: ca.crt
         target: /usr/share/packetbeat/certs/ca/ca.crt
+    user: root
     volumes:
       - './scripts/setup-beat.sh:/usr/local/bin/setup-beat.sh:ro'
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
     depends_on: ['elasticsearch', 'kibana']
     healthcheck:
-      test: packetbeat test config
+      test: packetbeat --strict.perms=false test config
       interval: 30s
       timeout: 15s
       retries: 5
 
   apm-server:
     image: docker.elastic.co/apm/apm-server:${TAG}
-    container_name: apm_server
+    container_name: apm-server
+    hostname: apm-server
     ports: ['8200:8200']
     networks: ['stack']
     command: --strict.perms=false -e  # -e flag to log to stderr and disable syslog/file output
@@ -284,6 +336,10 @@ secrets:
     file: ./config/heartbeat/heartbeat.yml
   heartbeat.keystore:
     file: ./config/heartbeat/heartbeat.keystore
+  journalbeat.yml:
+    file: ./config/journalbeat/journalbeat.yml
+  journalbeat.keystore:
+    file: ./config/journalbeat/journalbeat.keystore
   metricbeat.yml:
     file: ./config/metricbeat/metricbeat.yml
   metricbeat.keystore:

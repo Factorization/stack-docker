@@ -3,7 +3,7 @@ heartbeat.monitors:
   schedule: '@every 5s'
   urls:
     - https://elasticsearch:9200
-    - http://kibana:5601
+    - https://kibana:5601
   ssl:
     certificate_authorities: ["/usr/share/heartbeat/certs/ca/ca.crt"]
 
@@ -14,7 +14,9 @@ heartbeat.monitors:
     - kibana
 
 processors:
-- add_cloud_metadata:
+# - add_host_metadata: ~
+- add_cloud_metadata: ~
+# - add_docker_metadata: ~
 
 output.elasticsearch:
   hosts: ['elasticsearch:9200']
@@ -25,11 +27,12 @@ output.elasticsearch:
   ssl.certificate_authorities: ["/usr/share/heartbeat/certs/ca/ca.crt"]
 
 setup.kibana:
-  host: "http://kibana:5601"
+  host: "https://kibana:5601"
   username: elastic
   password: "${ELASTIC_PASSWORD}"
-  protocol: "http"
-  ssl.enabled: false
+  ssl.enabled: true
   ssl.certificate_authorities: ["/usr/share/heartbeat/certs/ca/ca.crt"]
 
+# monitoring.enabled: true
 xpack.monitoring.enabled: true
+

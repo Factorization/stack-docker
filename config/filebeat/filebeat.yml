@@ -1,13 +1,24 @@
-filebeat.config:
-  inputs:
-    path: ${path.config}/prospectors.d/*.yml
-    reload.enabled: false
-  modules:
-    path: ${path.config}/modules.d/*.yml
-    reload.enabled: false
+filebeat.inputs:
+- type: log
+  enabled: true
+  paths:
+    - ${path.config}/modules.d/*.yml
+    - /mnt/log/*.log
+    - /mnt/log/*/*.log
+
+filebeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+# filebeat.autodiscover:
+#   providers:
+#     - type: docker
+#       hints.enabled: true
 
 processors:
-- add_cloud_metadata:
+# - add_host_metadata: ~
+- add_cloud_metadata: ~
+# - add_docker_metadata: ~
 
 output.elasticsearch:
   hosts: ['elasticsearch:9200']
@@ -18,11 +29,12 @@ output.elasticsearch:
   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
 
 setup.kibana:
-  host: "http://kibana:5601"
+  host: "https://kibana:5601"
   username: elastic
   password: "${ELASTIC_PASSWORD}"
-  protocol: "http"
-  ssl.enabled: false
+  ssl.enabled: true
   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
 
+# monitoring.enabled: true
 xpack.monitoring.enabled: true
+

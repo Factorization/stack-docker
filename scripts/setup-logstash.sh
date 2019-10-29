@@ -7,7 +7,7 @@ cacert=/usr/share/logstash/config/ca/ca.crt
 # then something went wrong.
 while [ ! -f $cacert ]
 do
-  sleep 2
+    sleep 2
 done
 ls -l $cacert
 
@@ -20,8 +20,8 @@ done
 # Set the password for the logstash user.
 # REF: https://www.elastic.co/guide/en/x-pack/6.0/setting-up-authentication.html#set-built-in-user-passwords
 until curl -u "elastic:${ELASTIC_PASSWORD}" --cacert $cacert -s -H 'Content-Type:application/json' \
-     -XPUT $es_url/_xpack/security/user/logstash_system/_password \
-     -d "{\"password\": \"${ELASTIC_PASSWORD}\"}"
+    -XPUT $es_url/_security/user/logstash_system/_password \
+    -d "{\"password\": \"${ELASTIC_PASSWORD}\"}"
 do
     sleep 2
     echo Retrying...

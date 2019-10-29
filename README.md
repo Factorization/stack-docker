@@ -91,4 +91,4 @@ CTRL+C
 
 ## Troubleshooting
 
-If your are having trouble with the stack, run `docker-compose ps` to see all of the containers and their state. If any of the containers are not running or show as not running, re-start the stack in the foreground with `docker-compose up` and look for errors in the output.
+If your are having trouble with the stack, run `docker-compose ps` to see all of the containers and their state. If any of the containers are not running or show as not running, re-start the stack in the foreground with `docker-compose up` or `docker-compose up | grep 'WARN\|ERROR\|FATAL'` and look for errors in the output.

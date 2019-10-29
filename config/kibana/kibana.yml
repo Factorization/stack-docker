@@ -9,4 +9,6 @@ elasticsearch.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca/ca
 server.ssl.enabled: true
 server.ssl.certificate: /usr/share/kibana/config/certs/kibana/kibana.crt
 server.ssl.key: /usr/share/kibana/config/certs/kibana/kibana.key
+
 xpack.monitoring.ui.container.elasticsearch.enabled: true
+# xpack.monitoring.ui.enabled: true
